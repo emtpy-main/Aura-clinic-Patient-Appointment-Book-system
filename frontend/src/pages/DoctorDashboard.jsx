@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { FiCalendar, FiClock, FiCheck, FiX, FiPlus, FiGrid, FiList, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiCheck, FiX, FiPlus, FiGrid, FiList, FiAlertCircle } from 'react-icons/fi';
 import io from 'socket.io-client';
 
 const DoctorDashboard = () => {
@@ -22,6 +22,17 @@ const DoctorDashboard = () => {
 
   // Selected date for Daily Agenda
   const [agendaDate, setAgendaDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Reschedule Modal state
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleApp, setRescheduleApp] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rescheduleSlots, setRescheduleSlots] = useState([]);
+  const [selectedRescheduleSlotId, setSelectedRescheduleSlotId] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [rescheduleLoadingSlots, setRescheduleLoadingSlots] = useState(false);
+  const [submittingReschedule, setSubmittingReschedule] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -64,6 +75,71 @@ const DoctorDashboard = () => {
     };
   }, [token, API_URL]);
 
+  // Fetch Slots for Reschedule
+  const fetchRescheduleSlots = async () => {
+    if (!user?.doctorProfile?._id || !rescheduleDate) return;
+    setRescheduleLoadingSlots(true);
+    try {
+      const res = await fetch(`${API_URL}/slots/available?doctorId=${user.doctorProfile._id}&date=${rescheduleDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        const avail = (data.slots || []).filter(s => s.status === 'available');
+        setRescheduleSlots(avail);
+      }
+    } catch (err) {
+      console.error('Error fetching reschedule slots:', err);
+    } finally {
+      setRescheduleLoadingSlots(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showRescheduleModal) {
+      fetchRescheduleSlots();
+    }
+  }, [rescheduleDate, showRescheduleModal]);
+
+  const handleOpenReschedule = (app) => {
+    setRescheduleApp(app);
+    setSelectedRescheduleSlotId('');
+    setRescheduleReason('');
+    setRescheduleError('');
+    setShowRescheduleModal(true);
+  };
+
+  const handleConfirmReschedule = async () => {
+    if (!rescheduleApp || !selectedRescheduleSlotId) return;
+    setSubmittingReschedule(true);
+    setRescheduleError('');
+
+    try {
+      const res = await fetch(`${API_URL}/appointments/${rescheduleApp._id}/reschedule`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          newSlotId: selectedRescheduleSlotId,
+          reason: rescheduleReason
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to reschedule');
+      }
+
+      setShowRescheduleModal(false);
+      fetchAppointments();
+    } catch (err) {
+      setRescheduleError(err.message);
+    } finally {
+      setSubmittingReschedule(false);
+    }
+  };
+
   const handleUpdateStatus = async (id, status) => {
     setActionLoadingId(id);
     try {
@@ -76,7 +152,6 @@ const DoctorDashboard = () => {
         body: JSON.stringify({ status })
       });
       if (res.ok) {
-        // Refresh local appointments list
         await fetchAppointments();
       } else {
         const data = await res.json();
@@ -118,7 +193,6 @@ const DoctorDashboard = () => {
       }
 
       setGenSuccess(`Successfully generated ${data.count} new available slots!`);
-      // Reset dates/times slightly or keep them
     } catch (error) {
       setGenError(error.message);
     } finally {
@@ -245,7 +319,7 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Loading state */}
-      {loading && activeTab !== 'generate' ? (
+      {loading && activeTab !== 'generate' && !showRescheduleModal ? (
         <div className="space-y-4 animate-pulse">
           <div className="h-16 border border-zinc-900 bg-zinc-900/10 rounded-lg"></div>
           <div className="h-16 border border-zinc-900 bg-zinc-900/10 rounded-lg"></div>
@@ -290,11 +364,11 @@ const DoctorDashboard = () => {
                               {app.reason || <span className="text-zinc-750 italic">No note provided</span>}
                             </td>
                             <td className="whitespace-nowrap px-6 py-4 text-right">
-                              <div className="flex justify-end space-x-2">
+                              <div className="flex justify-end items-center space-x-2">
                                 <button
                                   onClick={() => handleUpdateStatus(app._id, 'approved')}
                                   disabled={actionLoadingId === app._id}
-                                  className="inline-flex items-center space-x-1 rounded bg-green-500/10 border border-green-500/25 px-2.5 py-1 text-xs font-semibold text-green-400 hover:bg-green-500 hover:text-zinc-950 transition-all duration-200"
+                                  className="inline-flex items-center space-x-1 rounded bg-green-500/10 border border-green-500/25 px-2.5 py-1 text-xs font-semibold text-green-400 hover:bg-green-500 hover:text-zinc-950 transition-all duration-200 cursor-pointer"
                                 >
                                   <FiCheck className="h-3 w-3" />
                                   <span>Approve</span>
@@ -302,10 +376,16 @@ const DoctorDashboard = () => {
                                 <button
                                   onClick={() => handleUpdateStatus(app._id, 'rejected')}
                                   disabled={actionLoadingId === app._id}
-                                  className="inline-flex items-center space-x-1 rounded bg-red-500/10 border border-red-500/25 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-500 hover:text-zinc-950 transition-all duration-200"
+                                  className="inline-flex items-center space-x-1 rounded bg-red-500/10 border border-red-500/25 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-500 hover:text-zinc-950 transition-all duration-200 cursor-pointer"
                                 >
                                   <FiX className="h-3 w-3" />
                                   <span>Reject</span>
+                                </button>
+                                <button
+                                  onClick={() => handleOpenReschedule(app)}
+                                  className="inline-flex items-center rounded border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-100 hover:text-zinc-950 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition-all duration-250 cursor-pointer"
+                                >
+                                  <span>Reschedule</span>
                                 </button>
                               </div>
                             </td>
@@ -353,6 +433,7 @@ const DoctorDashboard = () => {
                           <th scope="col" className="px-6 py-3.5">Patient Email</th>
                           <th scope="col" className="px-6 py-3.5">Symptoms / Visit Reason</th>
                           <th scope="col" className="px-6 py-3.5">Status</th>
+                          <th scope="col" className="px-6 py-3.5 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-900 bg-transparent text-zinc-300">
@@ -372,6 +453,14 @@ const DoctorDashboard = () => {
                                 <FiCheck className="h-3 w-3" />
                                 <span>Confirmed</span>
                               </span>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleOpenReschedule(app)}
+                                className="inline-flex items-center rounded border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-100 hover:text-zinc-950 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition-all duration-250 cursor-pointer"
+                              >
+                                <span>Reschedule</span>
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -500,6 +589,108 @@ const DoctorDashboard = () => {
               </form>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {showRescheduleModal && rescheduleApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md border border-zinc-800 bg-zinc-900 p-6 rounded-lg shadow-xl space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-zinc-100">Reschedule Appointment</h3>
+              <p className="text-sm text-zinc-400 mt-1">Select a new date and time slot for this patient.</p>
+            </div>
+
+            {rescheduleError && (
+              <div className="flex items-start space-x-2 rounded-md border border-red-900/30 bg-red-950/20 p-3 text-sm text-red-400">
+                <FiAlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <span>{rescheduleError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Patient
+                </label>
+                <div className="text-sm text-zinc-200 font-semibold font-mono">{rescheduleApp.patient?.email}</div>
+              </div>
+
+              <div>
+                <label htmlFor="resched-date" className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Choose New Date
+                </label>
+                <input
+                  type="date"
+                  id="resched-date"
+                  value={rescheduleDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-150 focus:border-zinc-300 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="resched-slot" className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Choose New Time Slot
+                </label>
+                {rescheduleLoadingSlots ? (
+                  <div className="h-10 bg-zinc-800 animate-pulse rounded"></div>
+                ) : rescheduleSlots.length === 0 ? (
+                  <p className="text-xs text-amber-500 italic">No available slots on this date.</p>
+                ) : (
+                  <select
+                    id="resched-slot"
+                    value={selectedRescheduleSlotId}
+                    onChange={(e) => setSelectedRescheduleSlotId(e.target.value)}
+                    className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-300 focus:border-zinc-300 focus:outline-none transition-all font-mono"
+                  >
+                    <option value="">-- Select Slot --</option>
+                    {rescheduleSlots.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {formatTime(s.startTime)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="resched-reason" className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                  Reason for Rescheduling
+                </label>
+                <textarea
+                  id="resched-reason"
+                  rows="3"
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  placeholder="e.g. Schedule conflict, emergency clinical delay..."
+                  className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-100 placeholder-zinc-550 focus:border-zinc-300 focus:outline-none transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowRescheduleModal(false)}
+                className="flex-1 rounded-md border border-zinc-800 bg-transparent py-2 text-sm font-semibold text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReschedule}
+                disabled={submittingReschedule || !selectedRescheduleSlotId || !rescheduleReason}
+                className="flex-1 flex justify-center items-center space-x-1 rounded-md bg-zinc-100 py-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-200 disabled:bg-zinc-850 disabled:text-zinc-600 transition-all cursor-pointer"
+              >
+                {submittingReschedule ? (
+                  <div className="w-5 h-5 border-2 border-zinc-850 border-t-zinc-400 rounded-full animate-spin" />
+                ) : (
+                  <span>Reschedule Visit</span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

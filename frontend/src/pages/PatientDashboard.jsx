@@ -1,33 +1,105 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiLoader, FiAlertCircle } from 'react-icons/fi';
+import io from 'socket.io-client';
 
 const PatientDashboard = () => {
   const { token, API_URL } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const res = await fetch(`${API_URL}/appointments/patient`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAppointments(data.appointments || []);
+  const fetchAppointments = async () => {
+    try {
+      const res = await fetch(`${API_URL}/appointments/patient`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error('Failed to fetch patient appointments:', error);
-      } finally {
-        setLoading(false);
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(data.appointments || []);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch patient appointments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`${API_URL}/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  useEffect(() => {
     fetchAppointments();
+    fetchNotifications();
   }, [token, API_URL]);
+
+  // WebSocket Live Updates
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+
+    socket.on('notifications-changed', () => {
+      console.log('[Socket] Notification change event received. Refreshing list...');
+      fetchNotifications();
+    });
+
+    socket.on('appointments-changed', () => {
+      console.log('[Socket] Appointments updated. Re-fetching bookings...');
+      fetchAppointments();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, API_URL]);
+
+  const handleMarkAsRead = async (notifId) => {
+    try {
+      await fetch(`${API_URL}/notifications/${notifId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const handleDeleteNotification = async (notifId) => {
+    try {
+      const res = await fetch(`${API_URL}/notifications/${notifId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete notification');
+      } else {
+        fetchNotifications();
+      }
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  };
 
   const formatDate = (isoString) => {
     return new Date(isoString).toLocaleDateString([], {
@@ -87,12 +159,78 @@ const PatientDashboard = () => {
         <div className="mt-4 md:mt-0 md:ml-4">
           <Link
             to="/doctors"
-            className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-950 shadow-sm hover:bg-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 transition-all"
+            className="inline-flex items-center rounded-md bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-950 shadow-sm hover:bg-zinc-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 transition-all cursor-pointer"
           >
             Book New Appointment
           </Link>
         </div>
       </div>
+
+      {/* Notifications Section */}
+      {notifications.length > 0 && (
+        <div className="mb-8 border border-zinc-900 bg-zinc-900/10 p-6 rounded-lg space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+            <h3 className="text-lg font-bold text-zinc-200 flex items-center space-x-2">
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <span>Alert Notifications</span>
+            </h3>
+            <span className="text-xs font-mono text-zinc-500">
+              {notifications.filter(n => !n.read).length} Unread
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {notifications.map((notif) => (
+              <div
+                key={notif._id}
+                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-md border transition-all ${
+                  notif.read
+                    ? 'border-zinc-900/40 bg-zinc-950/10 opacity-60'
+                    : 'border-zinc-800 bg-zinc-900/20'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    {!notif.read && (
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                    )}
+                    <p className="text-sm font-medium text-zinc-200 leading-normal">
+                      {notif.message}
+                    </p>
+                  </div>
+                  {notif.reason && (
+                    <p className="text-xs text-zinc-500 leading-normal font-mono pl-3.5">
+                      Reason: <span className="text-zinc-400 italic">"{notif.reason}"</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 sm:mt-0 flex items-center space-x-3 self-end sm:self-auto shrink-0 pl-4">
+                  {!notif.read ? (
+                    <button
+                      onClick={() => handleMarkAsRead(notif._id)}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all cursor-pointer"
+                    >
+                      Mark as Read
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleDeleteNotification(notif._id)}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded bg-red-950/20 border border-red-900/20 hover:bg-red-900 hover:text-zinc-950 text-red-400 transition-all cursor-pointer"
+                      title="Delete Notification"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bookings table/list */}
       {loading ? (
@@ -103,7 +241,7 @@ const PatientDashboard = () => {
         </div>
       ) : appointments.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-zinc-800 rounded-lg max-w-xl mx-auto">
-          <FiCalendar className="mx-auto h-12 w-12 text-zinc-650" />
+          <FiCalendar className="mx-auto h-12 w-12 text-zinc-600" />
           <h3 className="mt-4 text-lg font-bold text-zinc-300">No appointments scheduled</h3>
           <p className="mt-1 text-sm text-zinc-500">Get started by choosing a physician and locking a slot.</p>
           <div className="mt-6">
@@ -152,8 +290,8 @@ const PatientDashboard = () => {
                     <td className="whitespace-nowrap px-6 py-4">
                       {getStatusBadge(appointment.status)}
                     </td>
-                    <td className="px-6 py-4 text-zinc-450 max-w-xs truncate" title={appointment.reason}>
-                      {appointment.reason || <span className="text-zinc-600 italic">No notes</span>}
+                    <td className="px-6 py-4 text-zinc-400 max-w-xs truncate" title={appointment.reason}>
+                      {appointment.reason || <span className="text-zinc-700 italic">No notes</span>}
                     </td>
                   </tr>
                 ))}

@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const { register, login, me } = require('./controllers/authController');
 const { generateSlots, getAvailableSlots, getDoctors } = require('./controllers/slotController');
-const { bookAppointment, getPatientAppointments, getDoctorAppointments, updateAppointmentStatus } = require('./controllers/appointmentController');
+const { bookAppointment, getPatientAppointments, getDoctorAppointments, updateAppointmentStatus, rescheduleAppointment, getNotifications, markNotificationAsRead, deleteNotification } = require('./controllers/appointmentController');
 const { authenticateToken, requireRole } = require('./middleware/auth');
 
 const app = express();
@@ -59,6 +59,12 @@ app.post('/api/appointments', authenticateToken, requireRole(['patient']), bookA
 app.get('/api/appointments/patient', authenticateToken, requireRole(['patient']), getPatientAppointments);
 app.get('/api/appointments/doctor', authenticateToken, requireRole(['doctor', 'admin']), getDoctorAppointments);
 app.patch('/api/appointments/:id/status', authenticateToken, requireRole(['doctor', 'admin']), updateAppointmentStatus);
+app.patch('/api/appointments/:id/reschedule', authenticateToken, requireRole(['doctor', 'admin']), rescheduleAppointment);
+
+// Notification routes
+app.get('/api/notifications', authenticateToken, requireRole(['patient']), getNotifications);
+app.patch('/api/notifications/:id/read', authenticateToken, requireRole(['patient']), markNotificationAsRead);
+app.delete('/api/notifications/:id', authenticateToken, requireRole(['patient']), deleteNotification);
 
 // Basic health check route
 app.get('/health', (req, res) => {
