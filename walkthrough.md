@@ -1,12 +1,12 @@
-# Aura Clinic Operations Node - Comprehensive Project Walkthrough
+# Aura Clinic Operations Node - Engineering Walkthrough & Design Specifications
 
-This document serves as the complete, definitive technical reference manual for the **Patient Appointment Booking System** built on a monochromatic dark-mode MERN stack. It details how the project was designed, built, and polished from scratch through multiple phases of development.
+This document serves as the complete, technical reference manual and development design history for the **Patient Appointment Booking System** built on a monochromatic dark-mode MERN stack. It outlines the architectural design, database schemas, feature milestones, engineering constraints, and testing procedures.
 
 ---
 
 ## 🏗️ 1. Core Architecture & Tech Stack
 
-The system is split into two primary decoupled nodes (Backend API Server and Frontend Single Page App) communicating over HTTP REST APIs and WebSockets.
+The system is split into two primary decoupled nodes (Backend REST API Server and Frontend Single Page Application) communicating over secure HTTP REST endpoints and state-synchronized WebSockets.
 
 ### 📐 System Flow Diagram
 ```mermaid
@@ -62,15 +62,15 @@ graph TD
     SIO_C -->|Sync Re-fetch| BA
 ```
 
-### 💻 Technologies
-1. **Database:** MongoDB (using Mongoose ODM for schemas).
-2. **Server:** Express.js running on Node.js.
-3. **Frontend:** React.js bootstrapped with Vite, styled using Tailwind CSS and React Icons.
-4. **Real-time Engine:** Socket.io (websockets connection engine) to sync calendars and push notifications instantly without manual reloads.
-5. **Security:** JWT (JSON Web Tokens) for role-based route authorization (`patient`, `doctor`, `admin`).
+### 💻 Tech Stack Choice
+* **Database:** MongoDB (using Mongoose ODM for schemas).
+* **Server:** Express.js running on Node.js.
+* **Frontend:** React.js bootstrapped with Vite, styled using Tailwind CSS and React Icons.
+* **Real-time Engine:** Socket.io (websockets connection engine) to sync calendars and push notifications instantly without manual reloads.
+* **Security:** JWT (JSON Web Tokens) for role-based route authorization (`patient`, `doctor`, `admin`).
 
 ### 🛡️ CORS Preflights Resolution
-During development, a critical preflight issue was resolved concerning custom `PATCH`/`DELETE` preflight checks. Express-CORS defaults to `204 No Content` for preflights, which some browsers reject for state-modifying requests. The server configuration in [server.js](file:///d:/jaypee/backend/src/server.js) was explicitly tuned to echo headers dynamically and return `200 OK` on preflights:
+To prevent preflight blocks during cross-origin requests, the CORS middleware in [server.js](file:///d:/jaypee/backend/src/server.js) was configured to explicitly return `200 OK` on preflights (via `optionsSuccessStatus: 200`) instead of the default `204 No Content`, ensuring full compatibility with modern browser preflight checks:
 ```javascript
 app.use(cors({
   origin: true,
@@ -192,45 +192,44 @@ The system incorporates several subtle design details that ensure consistency an
 
 ---
 
-## 🗓️ 5. Chronological Development Log
+## 🗓️ 5. Project Roadmap & Releases
 
-This section details the actual progression of requests, debugging steps, and solutions applied during the project lifecycle.
+This section logs the sequential feature sets added during development sprints:
 
-| Phase / Prompt | Implementations | Key Challenges & Solutions |
+| Release / Version | Implemented Functionality | Architectural Resolution |
 | :--- | :--- | :--- |
-| **1. CORS Debugging** | Analyzed browser network preflights on status updates (`api/appointments/:id/status`). | **Problem:** Browser preflights failed. **Solution:** Configured Express CORS to explicitly return `200 OK` (via `optionsSuccessStatus: 200`) instead of `204 No Content`. |
-| **2. WebSocket Setup** | Configured live socket sync on patient slot selection, appointment list, and notifications. | **Problem:** UI required manually refreshing to check slot availability. **Solution:** Bound WebSockets to broadcast `slots-changed` and `appointments-changed` events. |
-| **3. Rescheduling Node** | Implemented doctor rescheduling modal, MongoDB Notification model, and live alerts. | **Problem:** Doctors needed to move appointments without breaking schemas. **Solution:** Atomic swap transaction: freed old slot, claimed new slot, and logged user notifications. |
-| **4. Notifications Management** | Patients can mark notification alerts as read or delete them. | **Problem:** Redundant notifications cluttered dashboards. **Solution:** Added routes for marking read (`PATCH`) and deleting notifications (`DELETE`). |
-| **5. Slot Status & Safety Constraints** | Added `'unavailable'` slot status, deletion controls, duplicate generation guards, and past-date blocks. | **Problem:** Doctors could override booked slots or schedule in the past. **Solution:** Checked `Slot.exists` for duplicate checks, added bounds validation, and restricted operations on booked status. |
-| **6. User Usability Upgrades** | Implemented readable date formatting (`29th May 2026 (2026-05-29)`), agenda auto-advance, and categorized tabs. | **Problem:** Mixed date interpretations and dense tables. **Solution:** Combined ordinal formatting with database strings in parents, added agenda auto-advance listener, and split tables into Upcoming/Past tabs. |
+| **v1.0.0 (Foundation)** | User authentication, clinician directory, JWT verification. | Solved preflight CORS failures by enforcing explicit `200 OK` preflight options responses on Express server. |
+| **v1.1.0 (Real-time Sync)** | Dynamic booking grid and active Socket.io state synchronization. | Handled real-time updates for slot lists, bookings, and dashboard screens. |
+| **v1.2.0 (Rescheduling)** | Doctor rescheduling interface, alert feed module, and notifications system. | Added dynamic DB Notification logs mapping clinician notes and reschedule details. |
+| **v1.3.0 (Slot Controls)** | Toggle slot availability (Available/Unavailable), slot deletions, generation guards. | Added `Slot.exists` check to block double slot generations. Booked slots were locked to preserve booking records. |
+| **v1.4.0 (Usability Upgrade)** | Date formatting engine, agenda auto-advance, upcoming/past schedule tabs. | Implemented custom formatting (`getOrdinalSuffix`), automated closest date scans, and temporal arrays. |
 
 ---
 
 ## 🧪 6. End-to-End System Testing & Verification
 
-A set of automated testing scripts are located in the scratch directory to verify the backend logic.
+A set of automated testing scripts are located in the `backend/tests` directory to verify the backend logic.
 
 ### 🖥️ Running Automated Tests
 
 #### Test 1: Concurrency Lock Test
 Tests concurrent booking requests for the same slot.
 ```bash
-node "C:\Users\singh\.gemini\antigravity\brain\9b0a32cd-b237-4be4-a32d-2ea914710556\scratch\test-concurrency.js"
+node backend/tests/concurrency.test.js
 ```
 * **Expected Output:** One patient gets `201 Created` (success), and the other receives `409 Conflict`.
 
 #### Test 2: Rescheduling and Approvals Test
 Verifies doctor approvals, rejections, and rescheduling states.
 ```bash
-node "C:\Users\singh\.gemini\antigravity\brain\9b0a32cd-b237-4be4-a32d-2ea914710556\scratch\test-approval.js"
+node backend/tests/approval.test.js
 ```
 * **Expected Output:** Outputs registration success, appointment bookings, and toggling of status codes.
 
 #### Test 3: Slot Management Console and Constraint Guards
 Tests duplicate generation, toggling availability, deletions, and safety bounds.
 ```bash
-node "C:\Users\singh\.gemini\antigravity\brain\9b0a32cd-b237-4be4-a32d-2ea914710556\scratch\test-slots-management.js"
+node backend/tests/slots-management.test.js
 ```
 * **Expected Output:**
   ```text
