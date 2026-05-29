@@ -103,6 +103,36 @@ const DoctorDashboard = () => {
     };
   }, [token, API_URL, manageSlotsDate, activeTab]);
 
+  // Auto-advance agendaDate to the next closest date with appointments if today is empty
+  useEffect(() => {
+    if (appointments.length === 0) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (agendaDate === todayStr) {
+      const todayHasAppts = appointments.some(app => {
+        if (!app.slot || app.status !== 'approved') return false;
+        const slotDate = new Date(app.slot.startTime).toISOString().split('T')[0];
+        return slotDate === todayStr;
+      });
+
+      if (!todayHasAppts) {
+        const futureDates = appointments
+          .filter(app => {
+            if (!app.slot || app.status !== 'approved') return false;
+            const slotDate = new Date(app.slot.startTime).toISOString().split('T')[0];
+            return slotDate > todayStr;
+          })
+          .map(app => new Date(app.slot.startTime).toISOString().split('T')[0]);
+
+        if (futureDates.length > 0) {
+          futureDates.sort();
+          setAgendaDate(futureDates[0]);
+        }
+      }
+    }
+  }, [appointments]);
+
   // Fetch Slots for Reschedule
   const fetchRescheduleSlots = async () => {
     if (!user?.doctorProfile?._id || !rescheduleDate) return;

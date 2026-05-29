@@ -9,6 +9,7 @@ const PatientDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [appointmentTab, setAppointmentTab] = useState('future');
 
   const fetchAppointments = async () => {
     try {
@@ -165,6 +166,28 @@ const PatientDashboard = () => {
     }
   };
 
+  const now = new Date();
+  const futureAppointments = appointments.filter(app => {
+    if (!app.slot) return true;
+    return new Date(app.slot.startTime) >= now;
+  });
+  const pastAppointments = appointments.filter(app => {
+    if (!app.slot) return false;
+    return new Date(app.slot.startTime) < now;
+  });
+
+  const sortedFuture = [...futureAppointments].sort((a, b) => {
+    if (!a.slot || !b.slot) return 0;
+    return new Date(a.slot.startTime) - new Date(b.slot.startTime);
+  });
+
+  const sortedPast = [...pastAppointments].sort((a, b) => {
+    if (!a.slot || !b.slot) return 0;
+    return new Date(b.slot.startTime) - new Date(a.slot.startTime);
+  });
+
+  const activeAppointments = appointmentTab === 'future' ? sortedFuture : sortedPast;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 bg-zinc-950 min-h-[calc(100vh-4rem)]">
       {/* Header */}
@@ -260,65 +283,101 @@ const PatientDashboard = () => {
             <div key={n} className="h-16 border border-zinc-900 bg-zinc-900/10 rounded-lg"></div>
           ))}
         </div>
-      ) : appointments.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-zinc-800 rounded-lg max-w-xl mx-auto">
-          <FiCalendar className="mx-auto h-12 w-12 text-zinc-600" />
-          <h3 className="mt-4 text-lg font-bold text-zinc-300">No appointments scheduled</h3>
-          <p className="mt-1 text-sm text-zinc-500">Get started by choosing a physician and locking a slot.</p>
-          <div className="mt-6">
-            <Link
-              to="/doctors"
-              className="inline-flex items-center rounded-md bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-300 hover:text-zinc-100 hover:border-zinc-700 transition-all"
-            >
-              Find a Doctor
-            </Link>
-          </div>
-        </div>
       ) : (
-        <div className="overflow-hidden border border-zinc-900 rounded-lg bg-zinc-900/5">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-zinc-900 text-left text-sm">
-              <thead className="bg-zinc-900/40 text-xs font-mono uppercase tracking-wider text-zinc-500">
-                <tr>
-                  <th scope="col" className="px-6 py-3.5">Doctor</th>
-                  <th scope="col" className="px-6 py-3.5">Specialization</th>
-                  <th scope="col" className="px-6 py-3.5">Date</th>
-                  <th scope="col" className="px-6 py-3.5">Time</th>
-                  <th scope="col" className="px-6 py-3.5">Status</th>
-                  <th scope="col" className="px-6 py-3.5">Note</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-900 bg-transparent text-zinc-300">
-                {appointments.map((appointment) => (
-                  <tr key={appointment._id} className="hover:bg-zinc-900/20 transition-colors">
-                    <td className="whitespace-nowrap px-6 py-4 font-semibold text-zinc-100">
-                      {appointment.doctor ? appointment.doctor.name : 'Unknown Doctor'}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-zinc-400">
-                      {appointment.doctor ? appointment.doctor.specialization : 'N/A'}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono">
-                      {appointment.slot ? formatDate(appointment.slot.startTime) : 'N/A'}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 font-mono text-zinc-200">
-                      {appointment.slot ? (
-                        <div className="flex items-center space-x-1.5">
-                          <FiClock className="text-zinc-500 h-3.5 w-3.5" />
-                          <span>{formatTime(appointment.slot.startTime)}</span>
-                        </div>
-                      ) : 'N/A'}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      {getStatusBadge(appointment.status)}
-                    </td>
-                    <td className="px-6 py-4 text-zinc-400 max-w-xs truncate" title={appointment.reason}>
-                      {appointment.reason || <span className="text-zinc-700 italic">No notes</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="space-y-6">
+          {/* Tabs Selector */}
+          <div className="flex border-b border-zinc-900 space-x-6">
+            <button
+              onClick={() => setAppointmentTab('future')}
+              className={`pb-3 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                appointmentTab === 'future'
+                  ? 'border-zinc-100 text-zinc-100 font-bold'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              Upcoming Appointments ({sortedFuture.length})
+            </button>
+            <button
+              onClick={() => setAppointmentTab('past')}
+              className={`pb-3 text-sm font-semibold tracking-wide border-b-2 transition-all cursor-pointer ${
+                appointmentTab === 'past'
+                  ? 'border-zinc-100 text-zinc-100 font-bold'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              Past Consultations ({sortedPast.length})
+            </button>
           </div>
+
+          {activeAppointments.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-zinc-800 rounded-lg max-w-xl mx-auto">
+              <FiCalendar className="mx-auto h-12 w-12 text-zinc-600" />
+              <h3 className="mt-4 text-lg font-bold text-zinc-350">
+                {appointmentTab === 'future' ? 'No upcoming appointments' : 'No past consultations'}
+              </h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                {appointmentTab === 'future' 
+                  ? 'Get started by choosing a physician and locking a slot.'
+                  : 'Your historical visit logs will appear here.'}
+              </p>
+              {appointmentTab === 'future' && (
+                <div className="mt-6">
+                  <Link
+                    to="/doctors"
+                    className="inline-flex items-center rounded-md bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-300 hover:text-zinc-100 hover:border-zinc-700 transition-all"
+                  >
+                    Find a Doctor
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-hidden border border-zinc-900 rounded-lg bg-zinc-900/5 animate-fadeIn">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-zinc-900 text-left text-sm">
+                  <thead className="bg-zinc-900/40 text-xs font-mono uppercase tracking-wider text-zinc-500">
+                    <tr>
+                      <th scope="col" className="px-6 py-3.5">Doctor</th>
+                      <th scope="col" className="px-6 py-3.5">Specialization</th>
+                      <th scope="col" className="px-6 py-3.5">Date</th>
+                      <th scope="col" className="px-6 py-3.5">Time</th>
+                      <th scope="col" className="px-6 py-3.5">Status</th>
+                      <th scope="col" className="px-6 py-3.5">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-900 bg-transparent text-zinc-300">
+                    {activeAppointments.map((appointment) => (
+                      <tr key={appointment._id} className="hover:bg-zinc-900/20 transition-colors">
+                        <td className="whitespace-nowrap px-6 py-4 font-semibold text-zinc-100">
+                          {appointment.doctor ? appointment.doctor.name : 'Unknown Doctor'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-zinc-400">
+                          {appointment.doctor ? appointment.doctor.specialization : 'N/A'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 font-mono">
+                          {appointment.slot ? formatDate(appointment.slot.startTime) : 'N/A'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 font-mono text-zinc-200">
+                          {appointment.slot ? (
+                            <div className="flex items-center space-x-1.5">
+                              <FiClock className="text-zinc-500 h-3.5 w-3.5" />
+                              <span>{formatTime(appointment.slot.startTime)}</span>
+                            </div>
+                          ) : 'N/A'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          {getStatusBadge(appointment.status)}
+                        </td>
+                        <td className="px-6 py-4 text-zinc-400 max-w-xs truncate" title={appointment.reason}>
+                          {appointment.reason || <span className="text-zinc-700 italic">No notes</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
