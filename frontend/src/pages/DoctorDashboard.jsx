@@ -237,6 +237,18 @@ const DoctorDashboard = () => {
     setGenSuccess('');
     setGenerating(true);
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (startDate < todayStr) {
+      setGenError('Cannot generate slots for past dates.');
+      setGenerating(false);
+      return;
+    }
+    if (endDate < startDate) {
+      setGenError('End date cannot be before start date.');
+      setGenerating(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/slots/generate`, {
         method: 'POST',
@@ -601,6 +613,7 @@ const DoctorDashboard = () => {
                       type="date"
                       id="gen-start-date"
                       value={startDate}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setStartDate(e.target.value)}
                       className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-150 focus:border-zinc-300 focus:outline-none transition-all font-mono"
                       required
@@ -615,6 +628,7 @@ const DoctorDashboard = () => {
                       type="date"
                       id="gen-end-date"
                       value={endDate}
+                      min={startDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-150 focus:border-zinc-300 focus:outline-none transition-all font-mono"
                       required

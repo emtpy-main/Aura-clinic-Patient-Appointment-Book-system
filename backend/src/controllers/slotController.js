@@ -33,6 +33,20 @@ const generateSlots = async (req, res) => {
       return res.status(400).json({ message: 'Invalid start or end date' });
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const checkStart = new Date(startDay);
+    checkStart.setHours(0, 0, 0, 0);
+
+    if (checkStart < today) {
+      return res.status(400).json({ message: 'Cannot generate slots for past dates' });
+    }
+
+    if (endDay < startDay) {
+      return res.status(400).json({ message: 'End date cannot be before start date' });
+    }
+
     const [startH, startM] = (startTimeStr || '09:00').split(':').map(Number);
     const [endH, endM] = (endTimeStr || '17:00').split(':').map(Number);
 
