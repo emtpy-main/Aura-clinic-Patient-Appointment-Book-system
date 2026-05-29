@@ -19,3 +19,8 @@ Desktop.ini
 
 # Build / Output directories
 frontend/dist/
+
+# Interview Q&A
+questions
+questions.md
+questions.txt
