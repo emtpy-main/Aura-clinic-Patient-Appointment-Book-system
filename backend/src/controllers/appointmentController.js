@@ -32,6 +32,12 @@ const bookAppointment = async (req, res) => {
 
     await appointment.save();
 
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slots-changed');
+      io.emit('appointments-changed');
+    }
+
     res.status(201).json({
       message: 'Appointment requested successfully',
       appointment
@@ -109,6 +115,12 @@ const updateAppointmentStatus = async (req, res) => {
     } else if (status === 'approved') {
       // Re-ensure slot is marked booked if it was previously set back
       await Slot.findByIdAndUpdate(appointment.slot, { status: 'booked' });
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slots-changed');
+      io.emit('appointments-changed');
     }
 
     res.status(200).json({

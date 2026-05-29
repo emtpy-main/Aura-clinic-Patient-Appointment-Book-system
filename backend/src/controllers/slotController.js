@@ -83,6 +83,11 @@ const generateSlots = async (req, res) => {
       await Slot.insertMany(uniqueSlots);
     }
 
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slots-changed');
+    }
+
     res.status(201).json({
       message: 'Slots generated successfully',
       count: uniqueSlots.length,
@@ -109,7 +114,6 @@ const getAvailableSlots = async (req, res) => {
 
     const slots = await Slot.find({
       doctor: doctorId,
-      status: 'available',
       startTime: { $gte: startOfDay, $lte: endOfDay }
     }).sort({ startTime: 1 });
 

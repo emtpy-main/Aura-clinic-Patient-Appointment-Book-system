@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const { register, login, me } = require('./controllers/authController');
@@ -11,6 +13,14 @@ const { authenticateToken, requireRole } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+  }
+});
+
 // Middleware
 app.use((req, res, next) => {
   console.log(`[Request] ${req.method} ${req.url}`);
@@ -19,10 +29,20 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: true,
   credentials: true,
-  optionsSuccessStatus: 200 // Returns 200 OK for OPTIONS preflight instead of 204
+  optionsSuccessStatus: 200
 }));
-
 app.use(express.json());
+
+// Socket.io connection setup
+io.on('connection', (socket) => {
+  console.log(`[Socket] Client connected: ${socket.id}`);
+  socket.on('disconnect', () => {
+    console.log(`[Socket] Client disconnected: ${socket.id}`);
+  });
+});
+
+// Share io with Express routers
+app.set('io', io);
 
 // Auth routes
 app.post('/api/auth/register', register);
@@ -50,8 +70,8 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/clinic
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('Successfully connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT} with WebSockets enabled`);
     });
   })
   .catch((error) => {

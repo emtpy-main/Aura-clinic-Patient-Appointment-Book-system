@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FiCalendar, FiClock, FiAlertCircle, FiArrowLeft, FiCheck } from 'react-icons/fi';
+import io from 'socket.io-client';
 
 const BookAppointment = () => {
   const { id } = useParams(); // Doctor ID
@@ -59,6 +60,20 @@ const BookAppointment = () => {
 
   useEffect(() => {
     fetchSlots();
+  }, [id, date, API_URL]);
+
+  // Live Sync with WebSockets
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+
+    socket.on('slots-changed', () => {
+      console.log('[Socket] Slots changed event received. Syncing view...');
+      fetchSlots();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [id, date, API_URL]);
 
   const formatTime = (isoString) => {
@@ -166,7 +181,7 @@ const BookAppointment = () => {
           <div className="border border-zinc-900 bg-zinc-900/10 p-6 rounded-lg">
             <h3 className="text-lg font-bold text-zinc-200 mb-4 flex items-center space-x-2">
               <FiClock className="text-zinc-400" />
-              <span>Available Slots</span>
+              <span>Availability Grid</span>
             </h3>
 
             {loadingSlots ? (
@@ -181,20 +196,28 @@ const BookAppointment = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {slots.map((slot) => (
-                  <button
-                    key={slot._id}
-                    onClick={() => handleOpenBooking(slot)}
-                    className="flex flex-col items-center justify-center p-3 rounded-md border border-zinc-800 hover:border-zinc-500 bg-zinc-900/20 hover:bg-zinc-900/60 transition-all duration-200 group text-center"
-                  >
-                    <span className="text-sm font-semibold text-zinc-300 group-hover:text-zinc-100 font-mono">
-                      {formatTime(slot.startTime)}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">
-                      Available
-                    </span>
-                  </button>
-                ))}
+                {slots.map((slot) => {
+                  const isBooked = slot.status === 'booked';
+                  return (
+                    <button
+                      key={slot._id}
+                      disabled={isBooked}
+                      onClick={() => handleOpenBooking(slot)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-md border text-center transition-all duration-200 ${
+                        isBooked 
+                          ? 'border-zinc-900 bg-zinc-950/20 text-zinc-600 cursor-not-allowed opacity-40' 
+                          : 'border-zinc-800 hover:border-zinc-500 bg-zinc-900/20 hover:bg-zinc-900/60 group cursor-pointer'
+                      }`}
+                    >
+                      <span className={`text-sm font-semibold font-mono ${isBooked ? 'text-zinc-650 line-through' : 'text-zinc-300 group-hover:text-zinc-150'}`}>
+                        {formatTime(slot.startTime)}
+                      </span>
+                      <span className={`text-[10px] uppercase tracking-wider mt-0.5 ${isBooked ? 'text-zinc-700 font-mono' : 'text-zinc-500'}`}>
+                        {isBooked ? 'Booked' : 'Available'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { FiCalendar, FiClock, FiCheck, FiX, FiPlus, FiGrid, FiList, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
+import io from 'socket.io-client';
 
 const DoctorDashboard = () => {
   const { token, API_URL, user } = useContext(AuthContext);
@@ -43,6 +44,24 @@ const DoctorDashboard = () => {
 
   useEffect(() => {
     fetchAppointments();
+  }, [token, API_URL]);
+
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+
+    socket.on('appointments-changed', () => {
+      console.log('[Socket] Appointments changed event received. Re-fetching dashboard logs...');
+      fetchAppointments();
+    });
+
+    socket.on('slots-changed', () => {
+      console.log('[Socket] Slots changed event received. Syncing dashboard slots view...');
+      fetchAppointments();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [token, API_URL]);
 
   const handleUpdateStatus = async (id, status) => {
