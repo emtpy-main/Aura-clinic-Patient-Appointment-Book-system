@@ -142,3 +142,29 @@ The system includes automated tests built in Node.js to verify core controllers,
    ```bash
    node backend/tests/slots-management.test.js
    ```
+
+---
+
+## 🐳 Docker Deployment (Backend Node)
+
+The backend Express server can be fully containerized for deployment.
+
+### 1. Build the Docker Image
+To build the image locally on Docker Desktop, navigate to the `backend/` directory and run:
+```bash
+docker build -t clinic-backend:latest .
+```
+
+### 2. Run the Container
+Run the container in detached mode mapping host port `5000` to container port `5000`. 
+
+* **Connecting to Host-Local MongoDB:** Since `127.0.0.1` inside a container points to the container itself, use `host.docker.internal` to connect to MongoDB running on your host machine:
+  ```bash
+  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb://host.docker.internal:27017/clinic-booking -e JWT_SECRET=your_jwt_secret_key clinic-backend:latest
+  ```
+
+* **Connecting to Cloud MongoDB (Atlas):** Simply pass your cloud connection URI:
+  ```bash
+  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/clinic-booking -e JWT_SECRET=your_jwt_secret_key clinic-backend:latest
+  ```
+
