@@ -1,0 +1,47 @@
+{
+    "doctors": [
+        {
+            "email": "john.carter@hospital.com",
+            "password": "John@123",
+            "fullProfessionalName": "Dr. John Carter, MD",
+            "medicalSpecialization": "Cardiology",
+            "biography": "Experienced cardiologist with 12 years of practice in diagnosing and treating heart diseases."
+        },
+        {
+            "email": "sarah.wilson@hospital.com",
+            "password": "Sarah@123",
+            "fullProfessionalName": "Dr. Sarah Wilson, MBBS, MS",
+            "medicalSpecialization": "Orthopedics",
+            "biography": "Specialist in bone and joint disorders with expertise in sports injury treatment."
+        },
+        {
+            "email": "michael.lee@hospital.com",
+            "password": "Michael@123",
+            "fullProfessionalName": "Dr. Michael Lee, MD",
+            "medicalSpecialization": "Dermatology",
+            "biography": "Dermatologist focusing on skin diseases, cosmetic treatments, and preventive skincare."
+        }
+    ],
+    "patients": [
+        {
+            "email": "alice.brown@gmail.com",
+            "password": "Alice@123"
+        },
+        {
+            "email": "robert.smith@gmail.com",
+            "password": "Robert@123"
+        },
+        {
+            "email": "emma.jones@gmail.com",
+            "password": "Emma@123"
+        },
+        {
+            "email": "david.miller@gmail.com",
+            "password": "David@123"
+        },
+        {
+            "email": "olivia.taylor@gmail.com",
+            "password": "Olivia@123"
+        }
+    ]
+}
