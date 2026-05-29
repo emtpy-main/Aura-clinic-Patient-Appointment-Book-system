@@ -268,12 +268,32 @@ const DoctorDashboard = () => {
   };
 
   // Helper date/time formatters
+  const getOrdinalSuffix = (day) => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1:  return "st";
+      case 2:  return "nd";
+      case 3:  return "rd";
+      default: return "th";
+    }
+  };
+
   const formatDate = (isoString) => {
-    return new Date(isoString).toLocaleDateString([], {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const month = monthNames[d.getMonth()];
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const originalFormat = `${yyyy}-${mm}-${dd}`;
+    return `${day}${getOrdinalSuffix(day)} ${month} ${year} (${originalFormat})`;
   };
 
   const formatTime = (isoString) => {
@@ -499,7 +519,7 @@ const DoctorDashboard = () => {
                   <FiCalendar className="mx-auto h-12 w-12 text-zinc-700" />
                   <h3 className="mt-4 text-base font-bold text-zinc-350">No confirmed appointments</h3>
                   <p className="mt-1 text-sm text-zinc-500 font-mono">
-                    No schedules locked for {new Date(agendaDate).toLocaleDateString([], { dateStyle: 'medium' })}.
+                    No schedules locked for {formatDate(agendaDate)}.
                   </p>
                 </div>
               ) : (
@@ -696,7 +716,7 @@ const DoctorDashboard = () => {
                   <FiCalendar className="mx-auto h-12 w-12 text-zinc-700" />
                   <h3 className="mt-4 text-base font-bold text-zinc-350">No slots generated</h3>
                   <p className="mt-1 text-sm text-zinc-500 font-mono">
-                    No slots exist for {new Date(manageSlotsDate).toLocaleDateString([], { dateStyle: 'medium' })}.
+                    No slots exist for {formatDate(manageSlotsDate)}.
                   </p>
                 </div>
               ) : (

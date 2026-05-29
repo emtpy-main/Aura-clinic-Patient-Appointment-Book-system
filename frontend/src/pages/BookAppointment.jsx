@@ -76,6 +76,34 @@ const BookAppointment = () => {
     };
   }, [id, date, API_URL]);
 
+  const getOrdinalSuffix = (day) => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1:  return "st";
+      case 2:  return "nd";
+      case 3:  return "rd";
+      default: return "th";
+    }
+  };
+
+  const formatDate = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const month = monthNames[d.getMonth()];
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const originalFormat = `${yyyy}-${mm}-${dd}`;
+    return `${day}${getOrdinalSuffix(day)} ${month} ${year} (${originalFormat})`;
+  };
+
   const formatTime = (isoString) => {
     const d = new Date(isoString);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -192,7 +220,7 @@ const BookAppointment = () => {
               </div>
             ) : slots.length === 0 ? (
               <div className="text-center py-8 border border-dashed border-zinc-800 rounded">
-                <p className="text-sm text-zinc-550">No booking slots available for {new Date(date).toLocaleDateString([], { dateStyle: 'medium' })}.</p>
+                <p className="text-sm text-zinc-550">No booking slots available for {formatDate(date)}.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -252,8 +280,8 @@ const BookAppointment = () => {
                 <span className="text-zinc-300">{doctor.specialization}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-500">Date:</span>
-                <span className="text-zinc-200">{new Date(date).toLocaleDateString([], { dateStyle: 'medium' })}</span>
+                <span className="text-zinc-550">Date:</span>
+                <span className="text-zinc-200">{formatDate(date)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Time:</span>

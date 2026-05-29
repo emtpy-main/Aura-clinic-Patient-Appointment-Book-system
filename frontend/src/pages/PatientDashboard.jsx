@@ -101,13 +101,34 @@ const PatientDashboard = () => {
     }
   };
 
+  const getOrdinalSuffix = (day) => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1:  return "st";
+      case 2:  return "nd";
+      case 3:  return "rd";
+      default: return "th";
+    }
+  };
+
   const formatDate = (isoString) => {
-    return new Date(isoString).toLocaleDateString([], {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const month = monthNames[d.getMonth()];
+    
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const originalFormat = `${yyyy}-${mm}-${dd}`;
+    
+    return `${day}${getOrdinalSuffix(day)} ${month} ${year} (${originalFormat})`;
   };
 
   const formatTime = (isoString) => {
