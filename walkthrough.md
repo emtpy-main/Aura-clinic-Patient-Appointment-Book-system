@@ -73,7 +73,7 @@ graph TD
 To prevent preflight blocks during cross-origin requests, the CORS middleware in [server.js](file:///d:/jaypee/backend/src/server.js) was configured to explicitly return `200 OK` on preflights (via `optionsSuccessStatus: 200`) instead of the default `204 No Content`, ensuring full compatibility with modern browser preflight checks:
 ```javascript
 app.use(cors({
-  origin: true,
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
   optionsSuccessStatus: 200
 }));

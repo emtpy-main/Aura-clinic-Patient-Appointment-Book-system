@@ -99,6 +99,7 @@ jaypee/
    PORT=5000
    MONGODB_URI=mongodb://127.0.0.1:27017/clinic-booking
    JWT_SECRET=your_super_secret_jwt_key_here
+   FRONTEND_URL=http://localhost:5173
    ```
 4. Start the backend development server:
    ```bash
@@ -160,11 +161,11 @@ Run the container in detached mode mapping host port `5000` to container port `5
 
 * **Connecting to Host-Local MongoDB:** Since `127.0.0.1` inside a container points to the container itself, use `host.docker.internal` to connect to MongoDB running on your host machine:
   ```bash
-  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb://host.docker.internal:27017/clinic-booking -e JWT_SECRET=your_jwt_secret_key clinic-backend:latest
+  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb://host.docker.internal:27017/clinic-booking -e JWT_SECRET=your_jwt_secret_key -e FRONTEND_URL=http://localhost:5173 clinic-backend:latest
   ```
 
 * **Connecting to Cloud MongoDB (Atlas):** Simply pass your cloud connection URI:
   ```bash
-  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/clinic-booking -e JWT_SECRET=your_jwt_secret_key clinic-backend:latest
+  docker run -d -p 5000:5000 --name clinic-api -e MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/clinic-booking -e JWT_SECRET=your_jwt_secret_key -e FRONTEND_URL=http://localhost:5173 clinic-backend:latest
   ```
 

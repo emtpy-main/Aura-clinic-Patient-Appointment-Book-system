@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // const API_URL = 'http://localhost:5000/api';
-  const API_URL = 'https://clinic-backend-srqv.onrender.com';
+  const API_URL = 'https://clinic-backend-srqv.onrender.com/api';
 
   useEffect(() => {
     const initializeAuth = async () => {
