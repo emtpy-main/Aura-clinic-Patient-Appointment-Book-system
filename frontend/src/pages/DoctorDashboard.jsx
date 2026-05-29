@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 
 const DoctorDashboard = () => {
   const { token, API_URL, user } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = useState('requests'); // 'schedule' | 'generate' | 'requests'
+  const [activeTab, setActiveTab] = useState('requests'); // 'schedule' | 'generate' | 'requests' | 'slots'
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -22,6 +22,11 @@ const DoctorDashboard = () => {
 
   // Selected date for Daily Agenda
   const [agendaDate, setAgendaDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Slots Console State
+  const [manageSlotsDate, setManageSlotsDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manageSlots, setManageSlots] = useState([]);
+  const [loadingManageSlots, setLoadingManageSlots] = useState(false);
 
   // Reschedule Modal state
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
@@ -53,9 +58,31 @@ const DoctorDashboard = () => {
     }
   };
 
+  const fetchManageSlots = async () => {
+    if (!user?.doctorProfile?._id || !manageSlotsDate) return;
+    setLoadingManageSlots(true);
+    try {
+      const res = await fetch(`${API_URL}/slots/available?doctorId=${user.doctorProfile._id}&date=${manageSlotsDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        setManageSlots(data.slots || []);
+      }
+    } catch (err) {
+      console.error('Error fetching manage slots:', err);
+    } finally {
+      setLoadingManageSlots(false);
+    }
+  };
+
   useEffect(() => {
     fetchAppointments();
   }, [token, API_URL]);
+
+  useEffect(() => {
+    if (activeTab === 'slots') {
+      fetchManageSlots();
+    }
+  }, [manageSlotsDate, activeTab]);
 
   useEffect(() => {
     const socket = io('http://localhost:5000');
@@ -68,12 +95,13 @@ const DoctorDashboard = () => {
     socket.on('slots-changed', () => {
       console.log('[Socket] Slots changed event received. Syncing dashboard slots view...');
       fetchAppointments();
+      fetchManageSlots();
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [token, API_URL]);
+  }, [token, API_URL, manageSlotsDate, activeTab]);
 
   // Fetch Slots for Reschedule
   const fetchRescheduleSlots = async () => {
@@ -137,6 +165,45 @@ const DoctorDashboard = () => {
       setRescheduleError(err.message);
     } finally {
       setSubmittingReschedule(false);
+    }
+  };
+
+  const handleToggleSlotAvailability = async (slotId) => {
+    try {
+      const res = await fetch(`${API_URL}/slots/${slotId}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        fetchManageSlots();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to toggle slot status');
+      }
+    } catch (err) {
+      console.error('Error toggling slot status:', err);
+    }
+  };
+
+  const handleDeleteSlot = async (slotId) => {
+    if (!window.confirm('Are you sure you want to delete this availability slot?')) return;
+    try {
+      const res = await fetch(`${API_URL}/slots/${slotId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        fetchManageSlots();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete slot');
+      }
+    } catch (err) {
+      console.error('Error deleting slot:', err);
     }
   };
 
@@ -315,11 +382,23 @@ const DoctorDashboard = () => {
             <FiPlus className="h-4 w-4" />
             <span>Generate Time Slots</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('slots')}
+            className={`flex items-center space-x-2 border-b-2 py-4 px-1 text-sm font-semibold transition-all ${
+              activeTab === 'slots'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:border-zinc-800 hover:text-zinc-300'
+            }`}
+          >
+            <FiGrid className="h-4 w-4" />
+            <span>Manage Slots</span>
+          </button>
         </nav>
       </div>
 
       {/* Loading state */}
-      {loading && activeTab !== 'generate' && !showRescheduleModal ? (
+      {loading && activeTab !== 'generate' && activeTab !== 'slots' && !showRescheduleModal ? (
         <div className="space-y-4 animate-pulse">
           <div className="h-16 border border-zinc-900 bg-zinc-900/10 rounded-lg"></div>
           <div className="h-16 border border-zinc-900 bg-zinc-900/10 rounded-lg"></div>
@@ -587,6 +666,110 @@ const DoctorDashboard = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* Tab 4: Slots Console */}
+          {activeTab === 'slots' && (
+            <div className="space-y-6">
+              <div className="border border-zinc-900 bg-zinc-900/10 p-5 rounded-lg max-w-sm animate-fadeIn">
+                <label htmlFor="manage-slots-date" className="text-xs font-mono uppercase tracking-wider text-zinc-500 block mb-2">
+                  Select Calendar Date
+                </label>
+                <input
+                  type="date"
+                  id="manage-slots-date"
+                  value={manageSlotsDate}
+                  onChange={(e) => setManageSlotsDate(e.target.value)}
+                  className="block w-full rounded-md border border-zinc-800 bg-zinc-900/40 py-2 px-3 text-sm text-zinc-150 focus:border-zinc-300 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              {loadingManageSlots ? (
+                <div className="space-y-4 animate-pulse">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="h-14 border border-zinc-900 bg-zinc-900/10 rounded-lg animate-pulse"></div>
+                  ))}
+                </div>
+              ) : manageSlots.length === 0 ? (
+                <div className="text-center py-16 border border-dashed border-zinc-900 rounded-lg">
+                  <FiCalendar className="mx-auto h-12 w-12 text-zinc-700" />
+                  <h3 className="mt-4 text-base font-bold text-zinc-350">No slots generated</h3>
+                  <p className="mt-1 text-sm text-zinc-500 font-mono">
+                    No slots exist for {new Date(manageSlotsDate).toLocaleDateString([], { dateStyle: 'medium' })}.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-hidden border border-zinc-900 rounded-lg bg-zinc-900/5">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-zinc-900 text-left text-sm">
+                      <thead className="bg-zinc-900/40 text-xs font-mono uppercase tracking-wider text-zinc-500">
+                        <tr>
+                          <th scope="col" className="px-6 py-3.5">Time Interval</th>
+                          <th scope="col" className="px-6 py-3.5">Current Status</th>
+                          <th scope="col" className="px-6 py-3.5 text-right">Console Controls</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-900 bg-transparent text-zinc-300">
+                        {manageSlots.map((slot) => {
+                          const isBooked = slot.status === 'booked';
+                          const isUnavailable = slot.status === 'unavailable';
+                          return (
+                            <tr key={slot._id} className="hover:bg-zinc-900/20 transition-colors">
+                              <td className="whitespace-nowrap px-6 py-4 font-mono font-semibold text-zinc-100">
+                                {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-4">
+                                {isBooked ? (
+                                  <span className="inline-flex items-center space-x-1 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-semibold text-green-400 border border-green-500/20">
+                                    <span>Booked</span>
+                                  </span>
+                                ) : isUnavailable ? (
+                                  <span className="inline-flex items-center space-x-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-400 border border-red-500/20">
+                                    <span>Unavailable</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center space-x-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-400 border border-blue-500/20">
+                                    <span>Available</span>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-6 py-4 text-right">
+                                <div className="flex justify-end space-x-3">
+                                  <button
+                                    onClick={() => handleToggleSlotAvailability(slot._id)}
+                                    disabled={isBooked}
+                                    className={`inline-flex items-center rounded px-2.5 py-1 text-xs font-semibold transition-all duration-200 ${
+                                      isBooked
+                                        ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed border border-zinc-900'
+                                        : isUnavailable
+                                          ? 'bg-blue-500/10 border border-blue-500/25 text-blue-450 hover:bg-blue-500 hover:text-zinc-950 cursor-pointer'
+                                          : 'bg-red-500/10 border border-red-500/25 text-red-400 hover:bg-red-500 hover:text-zinc-950 cursor-pointer'
+                                    }`}
+                                  >
+                                    {isUnavailable ? 'Mark Available' : 'Mark Unavailable'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSlot(slot._id)}
+                                    disabled={isBooked}
+                                    className={`inline-flex items-center rounded px-2.5 py-1 text-xs font-semibold transition-all duration-200 ${
+                                      isBooked
+                                        ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed border border-zinc-900'
+                                        : 'bg-red-950/20 border border-red-900/20 hover:bg-red-900 hover:text-zinc-950 text-red-400 cursor-pointer'
+                                    }`}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

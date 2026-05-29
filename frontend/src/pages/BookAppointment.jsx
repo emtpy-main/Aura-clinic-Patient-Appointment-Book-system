@@ -198,22 +198,24 @@ const BookAppointment = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {slots.map((slot) => {
                   const isBooked = slot.status === 'booked';
+                  const isUnavailable = slot.status === 'unavailable';
+                  const isDisabled = isBooked || isUnavailable;
                   return (
                     <button
                       key={slot._id}
-                      disabled={isBooked}
+                      disabled={isDisabled}
                       onClick={() => handleOpenBooking(slot)}
                       className={`flex flex-col items-center justify-center p-3 rounded-md border text-center transition-all duration-200 ${
-                        isBooked 
+                        isDisabled 
                           ? 'border-zinc-900 bg-zinc-950/20 text-zinc-600 cursor-not-allowed opacity-40' 
                           : 'border-zinc-800 hover:border-zinc-500 bg-zinc-900/20 hover:bg-zinc-900/60 group cursor-pointer'
                       }`}
                     >
-                      <span className={`text-sm font-semibold font-mono ${isBooked ? 'text-zinc-650 line-through' : 'text-zinc-300 group-hover:text-zinc-150'}`}>
+                      <span className={`text-sm font-semibold font-mono ${isDisabled ? 'text-zinc-650 line-through' : 'text-zinc-300 group-hover:text-zinc-150'}`}>
                         {formatTime(slot.startTime)}
                       </span>
-                      <span className={`text-[10px] uppercase tracking-wider mt-0.5 ${isBooked ? 'text-zinc-700 font-mono' : 'text-zinc-500'}`}>
-                        {isBooked ? 'Booked' : 'Available'}
+                      <span className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDisabled ? 'text-zinc-700 font-mono' : 'text-zinc-500'}`}>
+                        {isBooked ? 'Booked' : isUnavailable ? 'Unavailable' : 'Available'}
                       </span>
                     </button>
                   );

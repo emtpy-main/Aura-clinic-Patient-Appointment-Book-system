@@ -36,6 +36,26 @@ const generateSlots = async (req, res) => {
     const [startH, startM] = (startTimeStr || '09:00').split(':').map(Number);
     const [endH, endM] = (endTimeStr || '17:00').split(':').map(Number);
 
+    // Guard: Prevent duplicate slot generation for the same date
+    for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+      const dayStart = new Date(d);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(d);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const exists = await Slot.exists({
+        doctor: doctorId,
+        startTime: { $gte: dayStart, $lte: dayEnd }
+      });
+
+      if (exists) {
+        const dateStr = dayStart.toLocaleDateString([], { dateStyle: 'medium' });
+        return res.status(400).json({
+          message: `Slots have already been generated for ${dateStr}. Duplicate generation for the same date is not allowed.`
+        });
+      }
+    }
+
     const slotsToCreate = [];
 
     // Loop through each day from startDay to endDay
@@ -132,8 +152,80 @@ const getDoctors = async (req, res) => {
   }
 };
 
+const toggleSlotAvailability = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const slot = await Slot.findById(id);
+    if (!slot) {
+      return res.status(404).json({ message: 'Slot not found' });
+    }
+
+    // Verify doctor profile ownership
+    if (req.user.role === 'doctor') {
+      const doctorProfile = await Doctor.findOne({ user: req.user._id });
+      if (!doctorProfile || slot.doctor.toString() !== doctorProfile._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to modify this slot' });
+      }
+    }
+
+    if (slot.status === 'booked') {
+      return res.status(400).json({ message: 'Booked slots cannot be marked unavailable. Please reschedule or reject the booking instead.' });
+    }
+
+    // Toggle between available and unavailable
+    slot.status = slot.status === 'available' ? 'unavailable' : 'available';
+    await slot.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slots-changed');
+    }
+
+    res.status(200).json({ message: `Slot status updated to ${slot.status}`, slot });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to toggle slot availability', error: error.message });
+  }
+};
+
+const deleteSlot = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const slot = await Slot.findById(id);
+    if (!slot) {
+      return res.status(404).json({ message: 'Slot not found' });
+    }
+
+    // Verify doctor profile ownership
+    if (req.user.role === 'doctor') {
+      const doctorProfile = await Doctor.findOne({ user: req.user._id });
+      if (!doctorProfile || slot.doctor.toString() !== doctorProfile._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to delete this slot' });
+      }
+    }
+
+    if (slot.status === 'booked') {
+      return res.status(400).json({ message: 'Booked slots cannot be deleted. Please cancel/reject the appointment first.' });
+    }
+
+    await Slot.findByIdAndDelete(id);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slots-changed');
+    }
+
+    res.status(200).json({ message: 'Slot deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete slot', error: error.message });
+  }
+};
+
 module.exports = {
   generateSlots,
   getAvailableSlots,
-  getDoctors
+  getDoctors,
+  toggleSlotAvailability,
+  deleteSlot
 };

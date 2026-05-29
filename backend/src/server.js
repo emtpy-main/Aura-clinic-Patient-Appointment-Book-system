@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const { register, login, me } = require('./controllers/authController');
-const { generateSlots, getAvailableSlots, getDoctors } = require('./controllers/slotController');
+const { generateSlots, getAvailableSlots, getDoctors, toggleSlotAvailability, deleteSlot } = require('./controllers/slotController');
 const { bookAppointment, getPatientAppointments, getDoctorAppointments, updateAppointmentStatus, rescheduleAppointment, getNotifications, markNotificationAsRead, deleteNotification } = require('./controllers/appointmentController');
 const { authenticateToken, requireRole } = require('./middleware/auth');
 
@@ -53,6 +53,8 @@ app.get('/api/auth/me', authenticateToken, me);
 app.get('/api/doctors', getDoctors);
 app.get('/api/slots/available', getAvailableSlots);
 app.post('/api/slots/generate', authenticateToken, requireRole(['doctor', 'admin']), generateSlots);
+app.patch('/api/slots/:id/toggle', authenticateToken, requireRole(['doctor', 'admin']), toggleSlotAvailability);
+app.delete('/api/slots/:id', authenticateToken, requireRole(['doctor', 'admin']), deleteSlot);
 
 // Appointment routes
 app.post('/api/appointments', authenticateToken, requireRole(['patient']), bookAppointment);
