@@ -4,7 +4,7 @@ import { FiCalendar, FiClock, FiCheck, FiX, FiPlus, FiGrid, FiList, FiAlertCircl
 import io from 'socket.io-client';
 
 const DoctorDashboard = () => {
-  const { token, API_URL, user } = useContext(AuthContext);
+  const { token, API_URL, SOCKET_URL, user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('requests'); // 'schedule' | 'generate' | 'requests' | 'slots'
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +85,7 @@ const DoctorDashboard = () => {
   }, [manageSlotsDate, activeTab]);
 
   useEffect(() => {
-    const socket = io('http://localhost:5000');
+    const socket = io(SOCKET_URL);
 
     socket.on('appointments-changed', () => {
       console.log('[Socket] Appointments changed event received. Re-fetching dashboard logs...');

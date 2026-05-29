@@ -203,6 +203,7 @@ This section logs the sequential feature sets added during development sprints:
 | **v1.2.0 (Rescheduling)** | Doctor rescheduling interface, alert feed module, and notifications system. | Added dynamic DB Notification logs mapping clinician notes and reschedule details. |
 | **v1.3.0 (Slot Controls)** | Toggle slot availability (Available/Unavailable), slot deletions, generation guards. | Added `Slot.exists` check to block double slot generations. Booked slots were locked to preserve booking records. |
 | **v1.4.0 (Usability Upgrade)** | Date formatting engine, agenda auto-advance, upcoming/past schedule tabs. | Implemented custom formatting (`getOrdinalSuffix`), automated closest date scans, and temporal arrays. |
+| **v1.5.0 (Deployment Setup)** | CORS slash sanitization, dynamic socket configurations, and Vercel routing support. | Sanitized trailing slashes in server CORS, aligned API endpoints, and added Vercel rewrite rules (`vercel.json`) to prevent 404s on browser refresh. |
 
 ---
 

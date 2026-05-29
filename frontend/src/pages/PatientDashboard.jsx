@@ -5,7 +5,7 @@ import { FiCalendar, FiClock, FiCheckCircle, FiXCircle, FiLoader, FiAlertCircle 
 import io from 'socket.io-client';
 
 const PatientDashboard = () => {
-  const { token, API_URL } = useContext(AuthContext);
+  const { token, API_URL, SOCKET_URL } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ const PatientDashboard = () => {
 
   // WebSocket Live Updates
   useEffect(() => {
-    const socket = io('http://localhost:5000');
+    const socket = io(SOCKET_URL);
 
     socket.on('notifications-changed', () => {
       console.log('[Socket] Notification change event received. Refreshing list...');

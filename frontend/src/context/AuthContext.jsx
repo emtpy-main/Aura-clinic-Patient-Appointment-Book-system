@@ -7,8 +7,11 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // const API_URL = 'http://localhost:5000/api';
-  const API_URL = 'https://clinic-backend-srqv.onrender.com/api';
+  // const BASE_URL = 'http://localhost:5000';
+  const BASE_URL = 'https://clinic-backend-srqv.onrender.com';
+
+  const API_URL = `${BASE_URL}/api`;
+  const SOCKET_URL = BASE_URL;
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -59,7 +62,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, API_URL }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, API_URL, SOCKET_URL }}>
       {children}
     </AuthContext.Provider>
   );

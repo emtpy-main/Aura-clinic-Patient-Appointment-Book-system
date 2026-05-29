@@ -7,7 +7,7 @@ import io from 'socket.io-client';
 const BookAppointment = () => {
   const { id } = useParams(); // Doctor ID
   const navigate = useNavigate();
-  const { token, API_URL } = useContext(AuthContext);
+  const { token, API_URL, SOCKET_URL } = useContext(AuthContext);
 
   const [doctor, setDoctor] = useState(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -64,7 +64,7 @@ const BookAppointment = () => {
 
   // Live Sync with WebSockets
   useEffect(() => {
-    const socket = io('http://localhost:5000');
+    const socket = io(SOCKET_URL);
 
     socket.on('slots-changed', () => {
       console.log('[Socket] Slots changed event received. Syncing view...');
